@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/mikanmekan/koalemos/server"
+	"github.com/mikanmekan/koalemos/cmd/doorman/server"
 )
 
 func main() {
