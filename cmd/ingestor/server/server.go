@@ -47,7 +47,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Received metrics from client, request body:\n%s\n", metrics)
+	s.logger.Debug("received metrics from client", zap.String("metrics", string(metrics)))
 
 	w.WriteHeader(http.StatusOK)
 }
