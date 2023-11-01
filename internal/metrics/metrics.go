@@ -1,21 +1,28 @@
 package metrics
 
-// Metric is a single metric in OpenMetrics format.
-//
-// Open Metrics data model:
-// https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#data-model
-type Metric struct {
-	Name     string
-	Value    float64
-	LabelSet map[string]string
+// MetricPoint represents a single Koalemos data model metric datum.
+type MetricPoint struct {
+	Name      string
+	Value     float64
+	LabelSet  map[string]string
+	Timestamp int64
 }
 
 // Reader reads incoming byte streams for metrics.
 type Reader interface {
-	Read([]byte) ([]Metric, error)
+	Read([]byte) ([]MetricPoint, error)
 }
 
-// OMReader reads incoming byte streams for metrics in the OpenMetrics
+// MetricsReader reads incoming byte streams for metrics in the Koalemos
 // format.
-type OMReader struct {
+type MetricsReader struct {
+}
+
+func New() *MetricsReader {
+	return &MetricsReader{}
+}
+
+func (r *MetricsReader) Read(bytes []byte) ([]MetricPoint, error) {
+	metrics := make([]MetricPoint, 0)
+	return metrics, nil
 }

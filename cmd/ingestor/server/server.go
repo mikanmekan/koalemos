@@ -39,7 +39,7 @@ func (s *Server) HandleRequests() {
 }
 
 // handleMetrics expects a POST request with a JSON body containing metrics in
-// OpenMetrics format.
+// Koalemos format.
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	metrics, err := io.ReadAll(r.Body)
 	if err != nil {
