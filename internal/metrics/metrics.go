@@ -1,6 +1,9 @@
 package metrics
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // MetricPoint represents a single Koalemos data model metric datum.
 type MetricPoint struct {
@@ -38,7 +41,7 @@ func New() *MetricsReader {
 func (r *MetricsReader) Read(bytes []byte) (map[string]*MetricFamily, error) {
 	metricFamilies := make(map[string]*MetricFamily)
 
-	// TO-DO (p2): Benchmark this vs alloc heavy strings.Split()s.
+	// TO-DO: Benchmark this vs alloc heavy strings.Split()s.
 	// Split the incoming byte stream into individual metrics.
 	var err error
 	for i := 0; i < len(bytes); i++ {
@@ -72,22 +75,55 @@ func stripMetricFamilyMetadata(bytes []byte, metricFamilies map[string]*MetricFa
 			break
 		}
 	}
-	mdString := string(bytes[i:end])
-	metadataPieces := strings.SplitN(mdString, " ", 1)
+	metadataString := string(bytes[i:end])
+	// Split such that the first element is the metric family name, and the
+	// second is the relevant metadata.
+	metadataPieces := strings.SplitN(metadataString, " ", 1)
 
 	switch metadataPieces[0] {
 	case "TYPE":
-		// Discard for now, only supporting ambiguous float type.
+		enrichMetricFamilies(metricFamilies, &MetricFamily{
+			Name: metadataPieces[0],
+			Type: "gauge", // TO-DO: Support other metric types.
+		})
 	case "HELP":
 		// Assuming we encounter HELP before any other metadata or metrics.
-		metricFamilies[metadataPieces[0]] = &MetricFamily{
+		enrichMetricFamilies(metricFamilies, &MetricFamily{
 			Name: metadataPieces[0],
-			Type: "gauge",
 			Help: metadataPieces[1],
-		}
+		})
 	default:
 		return i + 1, ErrUnexpectedMetadata
 	}
 
 	return i, nil
+}
+
+// enrichMetricFamilies takes a metric family and adds the input metric family's
+// information to the metricFamilies.
+func enrichMetricFamilies(metricFamilies map[string]*MetricFamily, partialMetricFamily *MetricFamily) error {
+	var (
+		metricFamilyPtr *MetricFamily
+		ok              bool
+	)
+
+	if partialMetricFamily == nil {
+		return fmt.Errorf("partial metric family is nil")
+	}
+
+	// If this is the first insertion of data, just add the pointer to the map.
+	if metricFamilyPtr, ok = metricFamilies[partialMetricFamily.Name]; !ok {
+		metricFamilies[partialMetricFamily.Name] = partialMetricFamily
+		return nil
+	}
+
+	// If the metric family already exists, enrich existing data.
+	switch {
+	case partialMetricFamily.Help != "":
+		metricFamilyPtr.Help = partialMetricFamily.Help
+	case partialMetricFamily.Type != "":
+		metricFamilyPtr.Type = partialMetricFamily.Type
+	}
+
+	return nil
 }
