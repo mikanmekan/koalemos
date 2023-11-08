@@ -4,6 +4,4 @@ import (
 	"errors"
 )
 
-var (
-	ErrUnexpectedMetadata = errors.New("unexpected metadata")
-)
+var ErrUnexpectedMetadata = errors.New("unexpected metadata")

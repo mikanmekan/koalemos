@@ -28,8 +28,7 @@ type Reader interface {
 
 // MetricsReader reads incoming byte streams for metrics in the Koalemos
 // format.
-type MetricsReader struct {
-}
+type MetricsReader struct{}
 
 var _ Reader = (*MetricsReader)(nil)
 

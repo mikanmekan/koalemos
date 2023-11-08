@@ -9,8 +9,7 @@ type IMS interface {
 }
 
 // MetricsIMSImpl is the in memory store for metrics.
-type IMSImpl struct {
-}
+type IMSImpl struct{}
 
 var _ IMS = (*IMSImpl)(nil)
 
