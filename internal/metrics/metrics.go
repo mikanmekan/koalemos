@@ -32,7 +32,7 @@ type MetricsReader struct{}
 
 var _ Reader = (*MetricsReader)(nil)
 
-func New() *MetricsReader {
+func NewReader() *MetricsReader {
 	return &MetricsReader{}
 }
 
