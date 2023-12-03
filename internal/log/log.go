@@ -12,6 +12,7 @@ type Logger interface {
 	Error(msg string, fields ...zapcore.Field)
 	Fatal(msg string, fields ...zapcore.Field)
 	Panic(msg string, fields ...zapcore.Field)
+	Sync() error
 
 	// Debugf(template string, msg string, fields ...zapcore.Field)
 	// Infof(template string, msg string, fields ...zapcore.Field)

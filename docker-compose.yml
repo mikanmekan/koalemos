@@ -1,0 +1,10 @@
+version: '3'
+services:
+  ingestor:
+    build:
+      context: ./
+      dockerfile: ./cmd/ingestor/Dockerfile
+    volumes:
+      - .:/go/src/github.com/mikanmekan/koalemos
+    ports:
+      - "8080:8080"

@@ -92,6 +92,7 @@ func stripMetricFamilyMetadata(bytes []byte, metricFamilies map[string]*MetricFa
 			Help: metadataPieces[1],
 		})
 	default:
+		fmt.Println(i, metadataPieces, metadataString)
 		return i + 1, ErrUnexpectedMetadata
 	}
 
