@@ -63,6 +63,9 @@ Forwards metrics payloads to recipient ingestors.
 Queries ingestors(?) Would make sense to have a separate querier component which will eventually deal with reading out blocks from disk & obj storage.
 
 ## Ingestor
-Parses metrics, and stores them chronologically in memory.
+Receives and parses metrics, and stores them in memory. These need to be fast to retrieve chronologically to support range queries effectively.
 
-Periodically writes blocks out to disk.
+Periodically writes blocks out to disk || obj. storage
+
+## Blocks
+Blocks contain metrics received during a span of time, by default 2 hours.

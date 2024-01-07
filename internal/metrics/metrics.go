@@ -5,6 +5,14 @@ import (
 	"strings"
 )
 
+type metricComponent int
+
+const (
+	TYPE metricComponent = iota
+	NAME
+	TEXT
+)
+
 // MetricPoint represents a single Koalemos data model metric datum.
 type MetricPoint struct {
 	Name      string
@@ -70,33 +78,37 @@ func processMetric(bytes []byte, i int) (int, error) {
 func stripMetricFamilyMetadata(bytes []byte, metricFamilies map[string]*MetricFamily, i int) (int, error) {
 	end := i
 	for end = i; end < len(bytes); end++ {
-		if bytes[i] == '\n' {
+		if bytes[end] == '\n' {
 			break
 		}
 	}
-	metadataString := string(bytes[i:end])
+	// metadataString is the full line `# HELP metric desc....` ->
+	// `HELP metric desc....`
+	metadataString := string(bytes[i+1 : end])
 	// Split such that the first element is the metric family name, and the
 	// second is the relevant metadata.
-	metadataPieces := strings.SplitN(metadataString, " ", 1)
+	metadataPieces := strings.SplitN(metadataString, " ", 3)
 
-	switch metadataPieces[0] {
+	switch metadataPieces[TYPE] {
 	case "TYPE":
 		enrichMetricFamilies(metricFamilies, &MetricFamily{
-			Name: metadataPieces[0],
+			Name: metadataPieces[NAME],
 			Type: "gauge", // TO-DO: Support other metric types.
 		})
 	case "HELP":
 		// Assuming we encounter HELP before any other metadata or metrics.
 		enrichMetricFamilies(metricFamilies, &MetricFamily{
-			Name: metadataPieces[0],
-			Help: metadataPieces[1],
+			Name: metadataPieces[NAME],
+			Help: metadataPieces[TEXT],
 		})
 	default:
+		fmt.Println("encountered unexpected metadata:")
 		fmt.Println(i, metadataPieces, metadataString)
+		fmt.Println("----------")
 		return i + 1, ErrUnexpectedMetadata
 	}
 
-	return i, nil
+	return end, nil
 }
 
 // enrichMetricFamilies takes a metric family and adds the input metric family's
