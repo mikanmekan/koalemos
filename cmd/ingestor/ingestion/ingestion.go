@@ -44,9 +44,6 @@ func (i *Ingestor) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 	i.logger.Info(fmt.Sprintf("%v", mfs))
 
 	w.WriteHeader(http.StatusOK)
-
-	// mfStr := fmt.Sprintf("%v", mfs)
-	// w.Write([]byte(mfStr))
 }
 
 func (i *Ingestor) Register(r *mux.Router) {
