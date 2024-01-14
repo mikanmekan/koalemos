@@ -17,10 +17,10 @@ type MetricPoint struct {
 func (m *MetricPoint) String() string {
 	sb := strings.Builder{}
 
-	metricPoint := "Name: " + m.Name + "\n" +
-		"Value: " + "%f" + "\n" +
-		"Name: " + m.Name + "\n" +
-		"Timestamp: " + "%d" + "\n" +
+	metricPoint := "Name: " + m.Name + ", " +
+		"Value: " + "%f" + ", " +
+		"Name: " + m.Name + ", " +
+		"Timestamp: " + "%d" + ", " +
 		"Labels:"
 
 	floatStr := strconv.FormatFloat(m.Value, 'f', 4, 64)
@@ -45,9 +45,9 @@ type MetricFamily struct {
 func (m *MetricFamily) String() string {
 	sb := strings.Builder{}
 
-	metricFamily := "Name: " + m.Name + "\n" +
-		"Type: " + m.Type + "\n" +
-		"Help: " + m.Help + "\n" +
+	metricFamily := "Name: " + m.Name + ", " +
+		"Type: " + m.Type + ", " +
+		"Help: " + m.Help + ", " +
 		"Metrics:"
 
 	sb.WriteString(metricFamily)
