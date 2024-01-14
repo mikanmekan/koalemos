@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/mikanmekan/koalemos/internal/metrics"
@@ -37,8 +38,9 @@ http_requests_total{method="post",code="200"} 1027`,
 		reader := NewReader()
 
 		bs := []byte(tc.literalInput)
+		byteReader := bytes.NewReader(bs)
 
-		res, err := reader.Read(bs)
+		res, err := reader.Read(byteReader)
 		assert.Equal(t, tc.expectedMetrics, res)
 		assert.Equal(t, tc.expectedErr, err)
 	}

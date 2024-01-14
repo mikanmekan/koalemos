@@ -1,8 +1,11 @@
 package reader
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"strings"
+	"unsafe"
 
 	"github.com/mikanmekan/koalemos/internal/metrics"
 )
@@ -17,7 +20,7 @@ const (
 
 // Reader reads incoming byte streams for metrics.
 type Reader interface {
-	Read([]byte) (map[string]*metrics.MetricFamily, error)
+	Read(io.Reader) (map[string]*metrics.MetricFamily, error)
 }
 
 // MetricsReader reads incoming byte streams for metrics in the Koalemos
@@ -31,46 +34,50 @@ func NewReader() *MetricsReader {
 }
 
 // Read incoming byte streams for metrics in the Koalemos format.
-func (r *MetricsReader) Read(bytes []byte) (map[string]*metrics.MetricFamily, error) {
+func (r *MetricsReader) Read(requestReader io.Reader) (map[string]*metrics.MetricFamily, error) {
 	metricFamilies := make(map[string]*metrics.MetricFamily)
 
-	// TO-DO: Benchmark this vs alloc heavy strings.Split()s.
-	// Split the incoming byte stream into individual metrics.
-	var err error
-	for i := 0; i < len(bytes); i++ {
-		i, err = processLine(bytes, metricFamilies, i)
+	scanner := bufio.NewScanner(requestReader)
+	for scanner.Scan() {
+		line := BytesToString(scanner.Bytes())
+		err := processLine(line, metricFamilies)
 		if err != nil {
 			return metricFamilies, err
 		}
 	}
 
+	if scanner.Err() != nil {
+		return nil, scanner.Err()
+	}
+
 	return metricFamilies, nil
 }
 
-func processLine(bytes []byte, metricFamilies map[string]*metrics.MetricFamily, i int) (int, error) {
+func BytesToString(b []byte) string {
+	p := unsafe.SliceData(b)
+	return unsafe.String(p, len(b))
+}
+
+// processLine takes a byte slice representing a line in the metrics payload,
+// and applies the information to the metricFamilies.
+func processLine(line string, metricFamilies map[string]*metrics.MetricFamily) error {
 	var err error
-	if bytes[i] == '#' {
-		i, err = stripMetricFamilyMetadata(bytes, metricFamilies, i+1)
+	if line[0] == '#' {
+		err = stripMetricFamilyMetadata(line, metricFamilies)
 	} else {
-		i, err = processMetric(bytes, i)
+		err = processMetric(line)
 	}
-	return i, err
+	return err
 }
 
-func processMetric(bytes []byte, i int) (int, error) {
-	return i, nil
+func processMetric(line string) error {
+	return nil
 }
 
-func stripMetricFamilyMetadata(bytes []byte, metricFamilies map[string]*metrics.MetricFamily, i int) (int, error) {
-	end := i
-	for end = i; end < len(bytes); end++ {
-		if bytes[end] == '\n' {
-			break
-		}
-	}
+func stripMetricFamilyMetadata(line string, metricFamilies map[string]*metrics.MetricFamily) error {
 	// metadataString is the full line `# HELP metric desc....` ->
 	// `HELP metric desc....`
-	metadataString := string(bytes[i+1 : end])
+	metadataString := line[2:]
 	// Split such that the first element is the metric family name, and the
 	// second is the relevant metadata.
 	metadataPieces := strings.SplitN(metadataString, " ", 3)
@@ -89,12 +96,12 @@ func stripMetricFamilyMetadata(bytes []byte, metricFamilies map[string]*metrics.
 		})
 	default:
 		fmt.Println("encountered unexpected metadata:")
-		fmt.Println(i, metadataPieces, metadataString)
+		fmt.Println(metadataPieces, metadataString)
 		fmt.Println("----------")
-		return i + 1, ErrUnexpectedMetadata
+		return ErrUnexpectedMetadata
 	}
 
-	return end, nil
+	return nil
 }
 
 // enrichMetricFamilies takes a metric family and adds the input metric family's

@@ -2,7 +2,6 @@ package ingestion
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -29,13 +28,7 @@ type Ingestor struct {
 func (i *Ingestor) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 	metricsReader := reader.NewReader()
 
-	metrics, err := io.ReadAll(r.Body)
-	if err != nil {
-		i.logger.Warn("failed to read metrics", zap.Error(err))
-		return
-	}
-
-	mfs, err := metricsReader.Read(metrics)
+	mfs, err := metricsReader.Read(r.Body)
 	if err != nil {
 		i.logger.Warn("failed to read metrics", zap.Error(err))
 		return
