@@ -12,7 +12,7 @@ func Test_Read(t *testing.T) {
 	type Test struct {
 		desc            string
 		literalInput    string
-		expectedMetrics map[string]*metrics.MetricFamily
+		expectedMetrics *metrics.MetricFamiliesTimeGroup
 		expectedErr     error
 	}
 
@@ -22,12 +22,15 @@ func Test_Read(t *testing.T) {
 			literalInput: `# HELP http_requests_total The total number of HTTP requests.
 # TYPE http_requests_total gauge
 http_requests_total{method="post",code="200"} 1027`,
-			expectedMetrics: map[string]*metrics.MetricFamily{
-				"http_requests_total": {
-					Name:    "http_requests_total",
-					Metrics: nil,
-					Type:    "gauge",
-					Help:    "The total number of HTTP requests.",
+			expectedMetrics: &metrics.MetricFamiliesTimeGroup{
+				Time: 0,
+				Families: map[string]*metrics.MetricFamily{
+					"http_requests_total": {
+						Name:    "http_requests_total",
+						Metrics: nil,
+						Type:    "gauge",
+						Help:    "The total number of HTTP requests.",
+					},
 				},
 			},
 			expectedErr: nil,

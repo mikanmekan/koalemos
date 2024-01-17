@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"regexp"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -16,11 +18,17 @@ const (
 	TYPE metricComponent = iota
 	NAME
 	TEXT
+
+	// Match valid labelsets {method="post",code="400"}
+	// https://regex101.com/r/IgomLp/1
+	LABELSET_REGEX = `([a-zA-Z_][a-zA-Z0-9_]*?)="([a-zA-Z0-9_]*?)"(,|})`
 )
+
+var labelsetRegex = regexp.MustCompile(LABELSET_REGEX)
 
 // Reader reads incoming byte streams for metrics.
 type Reader interface {
-	Read(io.Reader) (map[string]*metrics.MetricFamily, error)
+	Read(io.Reader) (*metrics.MetricFamiliesTimeGroup, error)
 }
 
 // MetricsReader reads incoming byte streams for metrics in the Koalemos
@@ -34,10 +42,16 @@ func NewReader() *MetricsReader {
 }
 
 // Read incoming byte streams for metrics in the Koalemos format.
-func (r *MetricsReader) Read(requestReader io.Reader) (map[string]*metrics.MetricFamily, error) {
-	metricFamilies := make(map[string]*metrics.MetricFamily)
+func (r *MetricsReader) Read(requestReader io.Reader) (*metrics.MetricFamiliesTimeGroup, error) {
+	metricFamilies := metrics.NewMetricFamiliesTimeGroup()
 
 	scanner := bufio.NewScanner(requestReader)
+	// Grab timestamp for metrics payload.
+	if scanner.Scan() {
+		line := BytesToString(scanner.Bytes())
+		processFirstLine(line, metricFamilies)
+	}
+	// Process through rest of metrics payload (metadata, metrics).
 	for scanner.Scan() {
 		line := BytesToString(scanner.Bytes())
 		err := processLine(line, metricFamilies)
@@ -53,6 +67,19 @@ func (r *MetricsReader) Read(requestReader io.Reader) (map[string]*metrics.Metri
 	return metricFamilies, nil
 }
 
+func processFirstLine(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
+	time, err := strconv.ParseInt(line, 10, 64)
+	if err != nil {
+		err := processLine(line, metricFamilies)
+		if err != nil {
+			return fmt.Errorf("failed to process first line: %w", err)
+		}
+	}
+
+	metricFamilies.Time = time
+	return nil
+}
+
 func BytesToString(b []byte) string {
 	p := unsafe.SliceData(b)
 	return unsafe.String(p, len(b))
@@ -60,21 +87,34 @@ func BytesToString(b []byte) string {
 
 // processLine takes a byte slice representing a line in the metrics payload,
 // and applies the information to the metricFamilies.
-func processLine(line string, metricFamilies map[string]*metrics.MetricFamily) error {
+func processLine(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
 	var err error
 	if line[0] == '#' {
 		err = stripMetricFamilyMetadata(line, metricFamilies)
 	} else {
-		err = processMetric(line)
+		err = processMetric(line, metricFamilies)
 	}
 	return err
 }
 
-func processMetric(line string) error {
+func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
+	lineParts := strings.SplitN(line, "{", 2)
+
+	if len(lineParts) != 2 {
+		return ErrUnexpectedMetricLine
+	}
+
+	// labelSetParts := labelsetRegex.FindAllString(lineParts[1], -1)
+
+	// mp := metrics.MetricPoint{
+	// 	Name:     lineParts[0],
+	// 	LabelSet: map[string]string{},
+	// }
+
 	return nil
 }
 
-func stripMetricFamilyMetadata(line string, metricFamilies map[string]*metrics.MetricFamily) error {
+func stripMetricFamilyMetadata(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
 	// metadataString is the full line `# HELP metric desc....` ->
 	// `HELP metric desc....`
 	metadataString := line[2:]
@@ -84,20 +124,17 @@ func stripMetricFamilyMetadata(line string, metricFamilies map[string]*metrics.M
 
 	switch metadataPieces[TYPE] {
 	case "TYPE":
-		enrichMetricFamilies(metricFamilies, &metrics.MetricFamily{
+		metricFamilies.Apply(&metrics.MetricFamily{
 			Name: metadataPieces[NAME],
 			Type: "gauge", // TO-DO: Support other metric types.
 		})
 	case "HELP":
 		// Assuming we encounter HELP before any other metadata or metrics.
-		enrichMetricFamilies(metricFamilies, &metrics.MetricFamily{
+		metricFamilies.Apply(&metrics.MetricFamily{
 			Name: metadataPieces[NAME],
 			Help: metadataPieces[TEXT],
 		})
 	default:
-		fmt.Println("encountered unexpected metadata:")
-		fmt.Println(metadataPieces, metadataString)
-		fmt.Println("----------")
 		return ErrUnexpectedMetadata
 	}
 
@@ -106,29 +143,12 @@ func stripMetricFamilyMetadata(line string, metricFamilies map[string]*metrics.M
 
 // enrichMetricFamilies takes a metric family and adds the input metric family's
 // information to the metricFamilies.
-func enrichMetricFamilies(metricFamilies map[string]*metrics.MetricFamily, partialMetricFamily *metrics.MetricFamily) error {
-	var (
-		metricFamilyPtr *metrics.MetricFamily
-		ok              bool
-	)
-
+func enrichMetricFamilies(metricFamilies *metrics.MetricFamiliesTimeGroup, partialMetricFamily *metrics.MetricFamily) error {
 	if partialMetricFamily == nil {
 		return fmt.Errorf("partial metric family is nil")
 	}
 
-	// If this is the first insertion of data, just add the pointer to the map.
-	if metricFamilyPtr, ok = metricFamilies[partialMetricFamily.Name]; !ok {
-		metricFamilies[partialMetricFamily.Name] = partialMetricFamily
-		return nil
-	}
-
-	// If the metric family already exists, enrich existing data.
-	switch {
-	case partialMetricFamily.Help != "":
-		metricFamilyPtr.Help = partialMetricFamily.Help
-	case partialMetricFamily.Type != "":
-		metricFamilyPtr.Type = partialMetricFamily.Type
-	}
+	metricFamilies.Apply(partialMetricFamily)
 
 	return nil
 }
