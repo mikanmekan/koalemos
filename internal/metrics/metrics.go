@@ -70,13 +70,14 @@ func NewMetricFamiliesTimeGroup() *MetricFamiliesTimeGroup {
 	}
 }
 
-// Apply adds the information within mf to m.
-func (m *MetricFamiliesTimeGroup) Apply(mf *MetricFamily) error {
+// AddMetricFamily adds the information within mf to m. Adds will blindly overwrite
+// pre-existing information in m if present.
+func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 	if mf == nil {
 		return fmt.Errorf("partial metric family is nil")
 	}
 
-	if v, ok := m.Families[mf.Name]; ok {
+	if v, found := m.Families[mf.Name]; found {
 		// apply non-zero values
 		if len(mf.Metrics) == 0 {
 			v.Metrics = mf.Metrics
@@ -91,4 +92,10 @@ func (m *MetricFamiliesTimeGroup) Apply(mf *MetricFamily) error {
 		m.Families[mf.Name] = mf
 	}
 	return nil
+}
+
+func (m *MetricFamiliesTimeGroup) AddMetricPoint(mp *MetricPoint) {
+	// To-do - I wrote metric points as structs not pointer to structs for
+	// locality. Do we actually need to copy these structs?
+	m.Families[mp.Name].Metrics = append(m.Families[mp.Name].Metrics, *mp)
 }

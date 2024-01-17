@@ -104,12 +104,36 @@ func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup)
 		return ErrUnexpectedMetricLine
 	}
 
-	// labelSetParts := labelsetRegex.FindAllString(lineParts[1], -1)
+	labelSetParts := labelsetRegex.FindAllStringSubmatch(lineParts[1], -1)
 
-	// mp := metrics.MetricPoint{
-	// 	Name:     lineParts[0],
-	// 	LabelSet: map[string]string{},
-	// }
+	mp := metrics.MetricPoint{
+		Name:     lineParts[0],
+		LabelSet: map[string]string{},
+	}
+
+	err := processLabelSets(&mp, labelSetParts)
+	if err != nil {
+		return err
+	}
+
+	metricFamilies.AddMetricPoint(&mp)
+
+	return nil
+}
+
+func processLabelSets(mp *metrics.MetricPoint, labelSetParts [][]string) error {
+	if len(labelSetParts)%2 == 1 {
+		return ErrOddLabelSetParts
+	}
+
+	for i := 0; i < len(labelSetParts); i++ {
+		// Return err if there's a repeated key.
+		if _, found := mp.LabelSet[labelSetParts[i][1]]; !found {
+			mp.LabelSet[labelSetParts[i][1]] = labelSetParts[i][2]
+		} else {
+			return ErrDuplicateLabelKey
+		}
+	}
 
 	return nil
 }
@@ -124,31 +148,19 @@ func stripMetricFamilyMetadata(line string, metricFamilies *metrics.MetricFamili
 
 	switch metadataPieces[TYPE] {
 	case "TYPE":
-		metricFamilies.Apply(&metrics.MetricFamily{
+		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
 			Name: metadataPieces[NAME],
 			Type: "gauge", // TO-DO: Support other metric types.
 		})
 	case "HELP":
 		// Assuming we encounter HELP before any other metadata or metrics.
-		metricFamilies.Apply(&metrics.MetricFamily{
+		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
 			Name: metadataPieces[NAME],
 			Help: metadataPieces[TEXT],
 		})
 	default:
 		return ErrUnexpectedMetadata
 	}
-
-	return nil
-}
-
-// enrichMetricFamilies takes a metric family and adds the input metric family's
-// information to the metricFamilies.
-func enrichMetricFamilies(metricFamilies *metrics.MetricFamiliesTimeGroup, partialMetricFamily *metrics.MetricFamily) error {
-	if partialMetricFamily == nil {
-		return fmt.Errorf("partial metric family is nil")
-	}
-
-	metricFamilies.Apply(partialMetricFamily)
 
 	return nil
 }

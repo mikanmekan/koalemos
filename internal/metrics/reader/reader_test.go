@@ -26,10 +26,17 @@ http_requests_total{method="post",code="200"} 1027`,
 				Time: 0,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
-						Name:    "http_requests_total",
-						Metrics: nil,
-						Type:    "gauge",
-						Help:    "The total number of HTTP requests.",
+						Name: "http_requests_total",
+						Metrics: []metrics.MetricPoint{
+							{
+								Name:     "http_requests_total",
+								Value:    0,
+								LabelSet: map[string]string{"code": "200", "method": "post"},
+								Time:     0,
+							},
+						},
+						Type: "gauge",
+						Help: "The total number of HTTP requests.",
 					},
 				},
 			},
