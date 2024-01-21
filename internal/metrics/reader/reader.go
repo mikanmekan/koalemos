@@ -97,8 +97,9 @@ func processLine(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) e
 	return err
 }
 
+// processMetric with input line in format metric_name{lbl1="val",lbl2="val"} 10
 func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
-	lineParts := strings.SplitN(line, "{", 2)
+	lineParts := strings.SplitN(line, "{", -1)
 
 	if len(lineParts) != 2 {
 		return ErrUnexpectedMetricLine
@@ -116,20 +117,42 @@ func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup)
 		return err
 	}
 
+	val, err := parseValue(line)
+	if err != nil {
+		return err
+	}
+	mp.Value = val
+
 	metricFamilies.AddMetricPoint(&mp)
 
 	return nil
 }
 
-func processLabelSets(mp *metrics.MetricPoint, labelSetParts [][]string) error {
-	if len(labelSetParts)%2 == 1 {
-		return ErrOddLabelSetParts
+func parseValue(line string) (float64, error) {
+	valueStr := strings.Fields(line)
+
+	if len(valueStr) != 2 {
+		return 0, ErrInvalidValue
 	}
+
+	value, err := strconv.ParseFloat(valueStr[1], 64)
+	if err != nil {
+		return 0, fmt.Errorf("string field was not a valid float value: %w", err)
+	}
+
+	return value, nil
+}
+
+func processLabelSets(mp *metrics.MetricPoint, labelSetParts [][]string) error {
+	const (
+		KEY   = 1
+		VALUE = 2
+	)
 
 	for i := 0; i < len(labelSetParts); i++ {
 		// Return err if there's a repeated key.
-		if _, found := mp.LabelSet[labelSetParts[i][1]]; !found {
-			mp.LabelSet[labelSetParts[i][1]] = labelSetParts[i][2]
+		if _, found := mp.LabelSet[labelSetParts[i][KEY]]; !found {
+			mp.LabelSet[labelSetParts[i][KEY]] = labelSetParts[i][VALUE]
 		} else {
 			return ErrDuplicateLabelKey
 		}

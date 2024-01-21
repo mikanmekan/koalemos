@@ -19,18 +19,19 @@ func Test_Read(t *testing.T) {
 	tests := []Test{
 		{
 			desc: "Help Metadata",
-			literalInput: `# HELP http_requests_total The total number of HTTP requests.
+			literalInput: `978595200
+# HELP http_requests_total The total number of HTTP requests.
 # TYPE http_requests_total gauge
 http_requests_total{method="post",code="200"} 1027`,
 			expectedMetrics: &metrics.MetricFamiliesTimeGroup{
-				Time: 0,
+				Time: 978595200,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
 						Name: "http_requests_total",
 						Metrics: []metrics.MetricPoint{
 							{
 								Name:     "http_requests_total",
-								Value:    0,
+								Value:    1027,
 								LabelSet: map[string]string{"code": "200", "method": "post"},
 								Time:     0,
 							},
