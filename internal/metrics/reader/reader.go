@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/mikanmekan/koalemos/internal/metrics"
+	hashstructure "github.com/mitchellh/hashstructure/v2"
 )
 
 type metricComponent int
@@ -72,7 +73,7 @@ func processFirstLine(line string, metricFamilies *metrics.MetricFamiliesTimeGro
 	if err != nil {
 		err := processLine(line, metricFamilies)
 		if err != nil {
-			return fmt.Errorf("failed to process first line: %w", err)
+			return fmt.Errorf("processing first line: %w", err)
 		}
 	}
 
@@ -99,31 +100,45 @@ func processLine(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) e
 
 // processMetric with input line in format metric_name{lbl1="val",lbl2="val"} 10
 func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup) error {
+	const (
+		NAME_PART = iota
+		LABEL_PART
+	)
+
 	lineParts := strings.SplitN(line, "{", -1)
 
 	if len(lineParts) != 2 {
 		return ErrUnexpectedMetricLine
 	}
 
-	labelSetParts := labelsetRegex.FindAllStringSubmatch(lineParts[1], -1)
+	labelSetParts := labelsetRegex.FindAllStringSubmatch(lineParts[LABEL_PART], -1)
 
 	mp := metrics.MetricPoint{
-		Name:     lineParts[0],
+		Name:     lineParts[NAME_PART],
 		LabelSet: map[string]string{},
 	}
 
 	err := processLabelSets(&mp, labelSetParts)
 	if err != nil {
-		return err
+		return fmt.Errorf("processing label sets: %w", err)
 	}
 
 	val, err := parseValue(line)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing metric value: %w", err)
 	}
 	mp.Value = val
 
-	metricFamilies.AddMetricPoint(&mp)
+	hash, err := hashstructure.Hash(mp.LabelSet, hashstructure.FormatV2, nil)
+	if err != nil {
+		return fmt.Errorf("hashing metric point: %w", err)
+	}
+	mp.Hash = hash
+
+	err = metricFamilies.AddMetricPoint(&mp)
+	if err != nil {
+		return fmt.Errorf("adding metric point: %w", err)
+	}
 
 	return nil
 }
@@ -172,14 +187,16 @@ func stripMetricFamilyMetadata(line string, metricFamilies *metrics.MetricFamili
 	switch metadataPieces[TYPE] {
 	case "TYPE":
 		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
-			Name: metadataPieces[NAME],
-			Type: "gauge", // TO-DO: Support other metric types.
+			Name:   metadataPieces[NAME],
+			Type:   "gauge", // TO-DO: Support other metric types.
+			Hashes: map[uint64][]*metrics.MetricPoint{},
 		})
 	case "HELP":
 		// Assuming we encounter HELP before any other metadata or metrics.
 		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
-			Name: metadataPieces[NAME],
-			Help: metadataPieces[TEXT],
+			Name:   metadataPieces[NAME],
+			Help:   metadataPieces[TEXT],
+			Hashes: map[uint64][]*metrics.MetricPoint{},
 		})
 	default:
 		return ErrUnexpectedMetadata
