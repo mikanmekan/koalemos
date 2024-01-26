@@ -60,8 +60,32 @@ type MetricFamily struct {
 	Hashes  map[uint64][]*MetricPoint
 }
 
-func NewMetricFamily() MetricFamily {
-	return MetricFamily{Hashes: map[uint64][]*MetricPoint{}}
+type MetricFamilyOption func(*MetricFamily)
+
+func WithFamilyName(name string) MetricFamilyOption {
+	return func(m *MetricFamily) {
+		m.Name = name
+	}
+}
+
+func WithFamilyType(typeStr string) MetricFamilyOption {
+	return func(m *MetricFamily) {
+		m.Type = typeStr
+	}
+}
+
+func WithFamilyHelp(help string) MetricFamilyOption {
+	return func(m *MetricFamily) {
+		m.Help = help
+	}
+}
+
+func NewMetricFamily(opts ...MetricFamilyOption) MetricFamily {
+	m := MetricFamily{Hashes: map[uint64][]*MetricPoint{}}
+	for _, opt := range opts {
+		opt(&m)
+	}
+	return m
 }
 
 func (m *MetricFamily) String() string {
@@ -119,7 +143,7 @@ func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 func (m *MetricFamiliesTimeGroup) AddMetricPoint(mp *MetricPoint) error {
 	mf, err := m.GetMetricFamily(mp.Name)
 	if err != nil {
-		return nil
+		return fmt.Errorf("adding metric point: %w", err)
 	}
 
 	// Only add metric if there is no pre-existing labelset which would be

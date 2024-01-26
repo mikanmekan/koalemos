@@ -186,18 +186,19 @@ func stripMetricFamilyMetadata(line string, metricFamilies *metrics.MetricFamili
 
 	switch metadataPieces[TYPE] {
 	case "TYPE":
-		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
-			Name:   metadataPieces[NAME],
-			Type:   "gauge", // TO-DO: Support other metric types.
-			Hashes: map[uint64][]*metrics.MetricPoint{},
-		})
+		opts := []metrics.MetricFamilyOption{
+			metrics.WithFamilyName(metadataPieces[NAME]),
+			metrics.WithFamilyType("gauge"), // TO-DO: Support other metric types.
+		}
+		m := metrics.NewMetricFamily(opts...)
+		metricFamilies.AddMetricFamily(&m)
 	case "HELP":
-		// Assuming we encounter HELP before any other metadata or metrics.
-		metricFamilies.AddMetricFamily(&metrics.MetricFamily{
-			Name:   metadataPieces[NAME],
-			Help:   metadataPieces[TEXT],
-			Hashes: map[uint64][]*metrics.MetricPoint{},
-		})
+		opts := []metrics.MetricFamilyOption{
+			metrics.WithFamilyName(metadataPieces[NAME]),
+			metrics.WithFamilyHelp(metadataPieces[TEXT]),
+		}
+		m := metrics.NewMetricFamily(opts...)
+		metricFamilies.AddMetricFamily(&m)
 	default:
 		return ErrUnexpectedMetadata
 	}
