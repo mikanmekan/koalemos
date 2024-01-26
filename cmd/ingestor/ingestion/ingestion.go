@@ -34,7 +34,7 @@ func (i *Ingestor) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	i.logger.Info(fmt.Sprintf("%v", mfs))
+	i.logger.Info(fmt.Sprintf("%+v", mfs))
 
 	w.WriteHeader(http.StatusOK)
 }

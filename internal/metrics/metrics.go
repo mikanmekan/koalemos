@@ -35,7 +35,7 @@ func (m *MetricPoint) String() string {
 	sb := strings.Builder{}
 
 	metricPoint := "Name: " + m.Name + ", " +
-		"Value: " + "%f" + ", " +
+		"Value: " + "%s" + ", " +
 		"Name: " + m.Name + ", " +
 		"Timestamp: " + "%d" + ", " +
 		"Labels:"
@@ -117,9 +117,14 @@ func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 }
 
 func (m *MetricFamiliesTimeGroup) AddMetricPoint(mp *MetricPoint) error {
+	mf, err := m.GetMetricFamily(mp.Name)
+	if err != nil {
+		return nil
+	}
+
 	// Only add metric if there is no pre-existing labelset which would be
 	// colliding with this metric point.
-	if err := checkCollision(m, mp); err != nil {
+	if err := checkCollision(mf, mp); err != nil {
 		return fmt.Errorf("adding metric point: %w", err)
 	}
 
@@ -142,12 +147,7 @@ func (m *MetricFamiliesTimeGroup) GetMetricFamily(metricName string) (*MetricFam
 
 // checkCollision returns ErrDuplicateMetricLabelSet if mfs contains
 // mp. Also update metric family inside mfs to contain the new hash.
-func checkCollision(mfs *MetricFamiliesTimeGroup, mp *MetricPoint) error {
-	mf, err := mfs.GetMetricFamily(mp.Name)
-	if err != nil {
-		return nil
-	}
-
+func checkCollision(mf *MetricFamily, mp *MetricPoint) error {
 	hashedMps, found := mf.Hashes[mp.Hash]
 	if !found {
 		return nil
