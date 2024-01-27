@@ -36,6 +36,12 @@ func (i *Ingestor) HandleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	i.logger.Info(fmt.Sprintf("%+v", mfs))
 
+	err = i.metricsIMS.AddMetricFamiliesTimeGroup(mfs)
+	if err != nil {
+		i.logger.Error("failed to write metrics to in memory store", zap.Error(err))
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

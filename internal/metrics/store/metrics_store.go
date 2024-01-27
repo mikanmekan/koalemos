@@ -4,7 +4,7 @@ import "github.com/mikanmekan/koalemos/internal/metrics"
 
 // MetricsIMS is the interface for an in memory store for metrics.
 type IMS interface {
-	AddMetric(metricPoint *metrics.MetricPoint) error
+	AddMetricFamiliesTimeGroup(metricFamiliesTimeGroup *metrics.MetricFamiliesTimeGroup) error
 	GetMetricFamily(metricFamily metrics.MetricFamily) error
 }
 
@@ -17,8 +17,13 @@ func New() *IMSImpl {
 	return &IMSImpl{}
 }
 
-func (ims *IMSImpl) AddMetric(metricPoint *metrics.MetricPoint) error {
-	panic("not implemented")
+func (ims *IMSImpl) AddMetricFamiliesTimeGroup(metricFamiliesTimeGroup *metrics.MetricFamiliesTimeGroup) error {
+	// take each metric family
+	//
+
+	// for i, metricFamily := range metricFamiliesTimeGroup.Families {
+	// 	metricFamily.Metrics
+	// }
 }
 
 func (ims *IMSImpl) GetMetricFamily(metricFamily metrics.MetricFamily) error {

@@ -53,11 +53,10 @@ func (m *MetricPoint) String() string {
 
 // MetricFamily represents a group of metrics.
 type MetricFamily struct {
-	Name    string
-	Metrics []MetricPoint
-	Type    string
-	Help    string
-	Hashes  map[uint64][]*MetricPoint
+	Name          string
+	Type          string
+	Help          string
+	HashedMetrics map[uint64][]*MetricPoint
 }
 
 type MetricFamilyOption func(*MetricFamily)
@@ -81,7 +80,7 @@ func WithFamilyHelp(help string) MetricFamilyOption {
 }
 
 func NewMetricFamily(opts ...MetricFamilyOption) MetricFamily {
-	m := MetricFamily{Hashes: map[uint64][]*MetricPoint{}}
+	m := MetricFamily{HashedMetrics: map[uint64][]*MetricPoint{}}
 	for _, opt := range opts {
 		opt(&m)
 	}
@@ -97,8 +96,10 @@ func (m *MetricFamily) String() string {
 		"Metrics:"
 
 	sb.WriteString(metricFamily)
-	for _, v := range m.Metrics {
-		sb.WriteString(v.String())
+	for _, hashSlice := range m.HashedMetrics {
+		for _, mp := range hashSlice {
+			sb.WriteString(mp.String())
+		}
 	}
 
 	return sb.String()
@@ -125,8 +126,8 @@ func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 
 	if v, found := m.Families[mf.Name]; found {
 		// apply non-zero values
-		if len(mf.Metrics) == 0 {
-			v.Metrics = mf.Metrics
+		if len(mf.HashedMetrics) == 0 {
+			v.HashedMetrics = mf.HashedMetrics
 		}
 		if mf.Help != "" {
 			v.Help = mf.Help
@@ -152,12 +153,8 @@ func (m *MetricFamiliesTimeGroup) AddMetricPoint(mp *MetricPoint) error {
 		return fmt.Errorf("adding metric point: %w", err)
 	}
 
-	// To-do - I wrote metric points as structs not pointer to structs for
-	// locality. Do we actually need to copy these structs?
-	m.Families[mp.Name].Metrics = append(m.Families[mp.Name].Metrics, *mp)
-
 	// Update hash - (to-do: Add method for this, this is an eyesore!)
-	m.Families[mp.Name].Hashes[mp.Hash] = append(m.Families[mp.Name].Hashes[mp.Hash], mp)
+	m.Families[mp.Name].HashedMetrics[mp.Hash] = append(m.Families[mp.Name].HashedMetrics[mp.Hash], mp)
 
 	return nil
 }
@@ -172,7 +169,7 @@ func (m *MetricFamiliesTimeGroup) GetMetricFamily(metricName string) (*MetricFam
 // checkCollision returns ErrDuplicateMetricLabelSet if mfs contains
 // mp. Also update metric family inside mfs to contain the new hash.
 func checkCollision(mf *MetricFamily, mp *MetricPoint) error {
-	hashedMps, found := mf.Hashes[mp.Hash]
+	hashedMps, found := mf.HashedMetrics[mp.Hash]
 	if !found {
 		return nil
 	}
