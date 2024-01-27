@@ -32,7 +32,50 @@ func Test_Read(t *testing.T) {
 		Hash:     14315283831771060870,
 	}
 
+	mp3 := metrics.MetricPoint{
+		Name:     "http_requests_latency_ms",
+		Value:    70000,
+		LabelSet: map[string]string{"code": "200", "method": "post"},
+		Time:     0,
+		Hash:     7274857175809454558,
+	}
+
 	tests := []Test{
+		{
+			desc: "[POSITIVE] successfully read two metric points from two families",
+			literalInput: `978595200
+# HELP http_requests_total The total number of HTTP requests.
+# TYPE http_requests_total gauge
+# HELP http_requests_latency_ms The total latency of HTTP requests.
+# TYPE http_requests_latency_ms gauge
+http_requests_total{method="post",code="200"} 1027
+http_requests_total{method="post",code="422"} 1
+http_requests_latency_ms{method="post",code="200"} 70000`,
+			expectedMetrics: &metrics.MetricFamiliesTimeGroup{
+				Time: 978595200,
+				Families: map[string]*metrics.MetricFamily{
+					"http_requests_total": {
+						Name: "http_requests_total",
+						Metrics: []metrics.MetricPoint{
+							mp1, mp2,
+						},
+						Type:   "gauge",
+						Help:   "The total number of HTTP requests.",
+						Hashes: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1}, mp2.Hash: {&mp2}},
+					},
+					"http_requests_latency_ms": {
+						Name: "http_requests_latency_ms",
+						Metrics: []metrics.MetricPoint{
+							mp3,
+						},
+						Type:   "gauge",
+						Help:   "The total latency of HTTP requests.",
+						Hashes: map[uint64][]*metrics.MetricPoint{mp3.Hash: {&mp3}},
+					},
+				},
+			},
+			expectedErr: nil,
+		},
 		{
 			desc: "[POSITIVE] successfully read two metric points",
 			literalInput: `978595200
