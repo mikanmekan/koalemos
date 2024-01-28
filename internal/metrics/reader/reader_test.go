@@ -21,7 +21,7 @@ func Test_Read(t *testing.T) {
 		Value:    1027,
 		LabelSet: map[string]string{"code": "200", "method": "post"},
 		Time:     0,
-		Hash:     7274857175809454558,
+		Hash:     15123803854892908114,
 	}
 
 	mp2 := metrics.MetricPoint{
@@ -29,7 +29,7 @@ func Test_Read(t *testing.T) {
 		Value:    1,
 		LabelSet: map[string]string{"code": "422", "method": "post"},
 		Time:     0,
-		Hash:     14315283831771060870,
+		Hash:     15123803854892908114,
 	}
 
 	mp3 := metrics.MetricPoint{
@@ -37,7 +37,7 @@ func Test_Read(t *testing.T) {
 		Value:    70000,
 		LabelSet: map[string]string{"code": "200", "method": "post"},
 		Time:     0,
-		Hash:     7274857175809454558,
+		Hash:     2862631026593619755,
 	}
 
 	tests := []Test{
@@ -55,15 +55,19 @@ http_requests_latency_ms{method="post",code="200"} 70000`,
 				Time: 978595200,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
-						Name:          "http_requests_total",
-						Type:          "gauge",
-						Help:          "The total number of HTTP requests.",
-						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1}, mp2.Hash: {&mp2}},
+						Definition: metrics.MetricDefinition{
+							Name: "http_requests_total",
+							Type: "gauge",
+							Help: "The total number of HTTP requests.",
+						},
+						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1, &mp2}},
 					},
 					"http_requests_latency_ms": {
-						Name:          "http_requests_latency_ms",
-						Type:          "gauge",
-						Help:          "The total latency of HTTP requests.",
+						Definition: metrics.MetricDefinition{
+							Name: "http_requests_latency_ms",
+							Type: "gauge",
+							Help: "The total latency of HTTP requests.",
+						},
 						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp3.Hash: {&mp3}},
 					},
 				},
@@ -81,10 +85,12 @@ http_requests_total{method="post",code="422"} 1`,
 				Time: 978595200,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
-						Name:          "http_requests_total",
-						Type:          "gauge",
-						Help:          "The total number of HTTP requests.",
-						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1}, mp2.Hash: {&mp2}},
+						Definition: metrics.MetricDefinition{
+							Name: "http_requests_total",
+							Type: "gauge",
+							Help: "The total number of HTTP requests.",
+						},
+						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1, &mp2}},
 					},
 				},
 			},

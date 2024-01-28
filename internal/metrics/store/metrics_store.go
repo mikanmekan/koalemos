@@ -18,12 +18,7 @@ func New() *IMSImpl {
 }
 
 func (ims *IMSImpl) AddMetricFamiliesTimeGroup(metricFamiliesTimeGroup *metrics.MetricFamiliesTimeGroup) error {
-	// take each metric family
-	//
-
-	// for i, metricFamily := range metricFamiliesTimeGroup.Families {
-	// 	metricFamily.Metrics
-	// }
+	return nil
 }
 
 func (ims *IMSImpl) GetMetricFamily(metricFamily metrics.MetricFamily) error {

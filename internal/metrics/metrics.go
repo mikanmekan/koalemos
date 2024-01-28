@@ -51,48 +51,31 @@ func (m *MetricPoint) String() string {
 	return sb.String()
 }
 
+// MetricDefinition uniquely defines a metric.
+type MetricDefinition struct {
+	Name string
+	Type string
+	Help string
+}
+
 // MetricFamily represents a group of metrics.
 type MetricFamily struct {
-	Name          string
-	Type          string
-	Help          string
+	Definition    MetricDefinition
 	HashedMetrics map[uint64][]*MetricPoint
 }
 
-type MetricFamilyOption func(*MetricFamily)
-
-func WithFamilyName(name string) MetricFamilyOption {
-	return func(m *MetricFamily) {
-		m.Name = name
-	}
-}
-
-func WithFamilyType(typeStr string) MetricFamilyOption {
-	return func(m *MetricFamily) {
-		m.Type = typeStr
-	}
-}
-
-func WithFamilyHelp(help string) MetricFamilyOption {
-	return func(m *MetricFamily) {
-		m.Help = help
-	}
-}
-
-func NewMetricFamily(opts ...MetricFamilyOption) MetricFamily {
+func NewMetricFamily(def MetricDefinition) MetricFamily {
 	m := MetricFamily{HashedMetrics: map[uint64][]*MetricPoint{}}
-	for _, opt := range opts {
-		opt(&m)
-	}
+	m.Definition = def
 	return m
 }
 
 func (m *MetricFamily) String() string {
 	sb := strings.Builder{}
 
-	metricFamily := "Name: " + m.Name + ", " +
-		"Type: " + m.Type + ", " +
-		"Help: " + m.Help + ", " +
+	metricFamily := "Name: " + m.Definition.Name + ", " +
+		"Type: " + m.Definition.Type + ", " +
+		"Help: " + m.Definition.Help + ", " +
 		"Metrics:"
 
 	sb.WriteString(metricFamily)
@@ -124,19 +107,19 @@ func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 		return fmt.Errorf("partial metric family is nil")
 	}
 
-	if v, found := m.Families[mf.Name]; found {
+	if v, found := m.Families[mf.Definition.Name]; found {
 		// apply non-zero values
 		if len(mf.HashedMetrics) == 0 {
 			v.HashedMetrics = mf.HashedMetrics
 		}
-		if mf.Help != "" {
-			v.Help = mf.Help
+		if mf.Definition.Help != "" {
+			v.Definition.Help = mf.Definition.Help
 		}
-		if mf.Type != "" {
-			v.Type = mf.Type
+		if mf.Definition.Type != "" {
+			v.Definition.Type = mf.Definition.Type
 		}
 	} else {
-		m.Families[mf.Name] = mf
+		m.Families[mf.Definition.Name] = mf
 	}
 	return nil
 }
@@ -153,7 +136,7 @@ func (m *MetricFamiliesTimeGroup) AddMetricPoint(mp *MetricPoint) error {
 		return fmt.Errorf("adding metric point: %w", err)
 	}
 
-	// Update hash - (to-do: Add method for this, this is an eyesore!)
+	// Add metric, indexed by hash
 	m.Families[mp.Name].HashedMetrics[mp.Hash] = append(m.Families[mp.Name].HashedMetrics[mp.Hash], mp)
 
 	return nil
@@ -182,4 +165,11 @@ func checkCollision(mf *MetricFamily, mp *MetricPoint) error {
 
 	// (to-do: return true if mp matches value found above)
 	return nil
+}
+
+// MetricFamilyTimeSeries
+type MetricFamilyTimeSeries struct {
+	Def      MetricDefinition
+	LabelSet map[string]string
+	metrics  []MetricPoint
 }

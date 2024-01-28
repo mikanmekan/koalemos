@@ -118,7 +118,14 @@ func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup)
 		LabelSet: map[string]string{},
 	}
 
-	err := processLabelSets(&mp, labelSetParts)
+	// Take hash of metric name + label set
+	hash, err := hashstructure.Hash(mp, hashstructure.FormatV2, nil)
+	if err != nil {
+		return fmt.Errorf("hashing metric point: %w", err)
+	}
+	mp.Hash = hash
+
+	err = processLabelSets(&mp, labelSetParts)
 	if err != nil {
 		return fmt.Errorf("processing label sets: %w", err)
 	}
@@ -128,12 +135,6 @@ func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup)
 		return fmt.Errorf("parsing metric value: %w", err)
 	}
 	mp.Value = val
-
-	hash, err := hashstructure.Hash(mp.LabelSet, hashstructure.FormatV2, nil)
-	if err != nil {
-		return fmt.Errorf("hashing metric point: %w", err)
-	}
-	mp.Hash = hash
 
 	err = metricFamilies.AddMetricPoint(&mp)
 	if err != nil {
@@ -186,18 +187,18 @@ func stripMetricFamilyMetadata(line string, metricFamilies *metrics.MetricFamili
 
 	switch metadataPieces[TYPE] {
 	case "TYPE":
-		opts := []metrics.MetricFamilyOption{
-			metrics.WithFamilyName(metadataPieces[NAME]),
-			metrics.WithFamilyType("gauge"), // TO-DO: Support other metric types.
+		def := metrics.MetricDefinition{
+			Name: metadataPieces[NAME],
+			Type: "gauge", // TO-DO: Support other metric types.
 		}
-		m := metrics.NewMetricFamily(opts...)
+		m := metrics.NewMetricFamily(def)
 		metricFamilies.AddMetricFamily(&m)
 	case "HELP":
-		opts := []metrics.MetricFamilyOption{
-			metrics.WithFamilyName(metadataPieces[NAME]),
-			metrics.WithFamilyHelp(metadataPieces[TEXT]),
+		def := metrics.MetricDefinition{
+			Name: metadataPieces[NAME],
+			Help: metadataPieces[TEXT],
 		}
-		m := metrics.NewMetricFamily(opts...)
+		m := metrics.NewMetricFamily(def)
 		metricFamilies.AddMetricFamily(&m)
 	default:
 		return ErrUnexpectedMetadata
