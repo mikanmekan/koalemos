@@ -5,30 +5,17 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/mitchellh/hashstructure/v2"
 )
 
 // MetricPoint represents a single Koalemos data model metric datum.
 type MetricPoint struct {
 	Name     string
-	Value    float64
+	Value    float64 `hash:"ignore"`
 	LabelSet map[string]string
-	Time     int64
-	Hash     uint64
-}
-
-// MetadataEquals will return true between m1 & m2 if the two metric points'
-// label sets are equal. This is used to check whether two metric points can
-// both reside within a MetricFamiliesTimeGroup.
-func (m1 *MetricPoint) MetadataEquals(m2 *MetricPoint) bool {
-	if m1.Hash != m2.Hash {
-		return false
-	}
-
-	if !reflect.DeepEqual(m1.LabelSet, m2.LabelSet) {
-		return false
-	}
-
-	return true
+	Time     int64  `hash:"ignore"`
+	Hash     uint64 `hash:"ignore"`
 }
 
 func (m *MetricPoint) String() string {
@@ -51,6 +38,40 @@ func (m *MetricPoint) String() string {
 	return sb.String()
 }
 
+func (mf *MetricFamily) ToMetricTimeSeries() *MetricFamilyTimeSeries {
+	return &MetricFamilyTimeSeries{
+		Def: mf.Def,
+	}
+}
+
+// HashMetric takes a hash of metric name + label set and returns the hash.
+func HashMetric(mp *MetricPoint) (uint64, error) {
+	hash, err := hashstructure.Hash(mp, hashstructure.FormatV2, nil)
+	if err != nil {
+		return 0, fmt.Errorf("hashing metric point: %w", err)
+	}
+	return hash, nil
+}
+
+// MetadataEquals will return true between m1 & m2 if the two metric points'
+// label sets are equal. This is used to check whether two metric points can
+// both reside within a MetricFamiliesTimeGroup.
+func (m1 *MetricPoint) MetadataEquals(m2 *MetricPoint) bool {
+	if m1.Hash != m2.Hash {
+		return false
+	}
+
+	if m1.Name != m2.Name {
+		return false
+	}
+
+	if !reflect.DeepEqual(m1.LabelSet, m2.LabelSet) {
+		return false
+	}
+
+	return true
+}
+
 // MetricDefinition uniquely defines a metric.
 type MetricDefinition struct {
 	Name string
@@ -60,22 +81,22 @@ type MetricDefinition struct {
 
 // MetricFamily represents a group of metrics.
 type MetricFamily struct {
-	Definition    MetricDefinition
+	Def           MetricDefinition
 	HashedMetrics map[uint64][]*MetricPoint
 }
 
 func NewMetricFamily(def MetricDefinition) MetricFamily {
 	m := MetricFamily{HashedMetrics: map[uint64][]*MetricPoint{}}
-	m.Definition = def
+	m.Def = def
 	return m
 }
 
 func (m *MetricFamily) String() string {
 	sb := strings.Builder{}
 
-	metricFamily := "Name: " + m.Definition.Name + ", " +
-		"Type: " + m.Definition.Type + ", " +
-		"Help: " + m.Definition.Help + ", " +
+	metricFamily := "Name: " + m.Def.Name + ", " +
+		"Type: " + m.Def.Type + ", " +
+		"Help: " + m.Def.Help + ", " +
 		"Metrics:"
 
 	sb.WriteString(metricFamily)
@@ -107,19 +128,19 @@ func (m *MetricFamiliesTimeGroup) AddMetricFamily(mf *MetricFamily) error {
 		return fmt.Errorf("partial metric family is nil")
 	}
 
-	if v, found := m.Families[mf.Definition.Name]; found {
+	if v, found := m.Families[mf.Def.Name]; found {
 		// apply non-zero values
 		if len(mf.HashedMetrics) == 0 {
 			v.HashedMetrics = mf.HashedMetrics
 		}
-		if mf.Definition.Help != "" {
-			v.Definition.Help = mf.Definition.Help
+		if mf.Def.Help != "" {
+			v.Def.Help = mf.Def.Help
 		}
-		if mf.Definition.Type != "" {
-			v.Definition.Type = mf.Definition.Type
+		if mf.Def.Type != "" {
+			v.Def.Type = mf.Def.Type
 		}
 	} else {
-		m.Families[mf.Definition.Name] = mf
+		m.Families[mf.Def.Name] = mf
 	}
 	return nil
 }
@@ -149,7 +170,7 @@ func (m *MetricFamiliesTimeGroup) GetMetricFamily(metricName string) (*MetricFam
 	return nil, ErrMetricFamilyNotFound
 }
 
-// checkCollision returns ErrDuplicateMetricLabelSet if mfs contains
+// checkCollision returns ErrDuplicateMetricLabelSet if mf contains
 // mp. Also update metric family inside mfs to contain the new hash.
 func checkCollision(mf *MetricFamily, mp *MetricPoint) error {
 	hashedMps, found := mf.HashedMetrics[mp.Hash]
@@ -163,7 +184,6 @@ func checkCollision(mf *MetricFamily, mp *MetricPoint) error {
 		}
 	}
 
-	// (to-do: return true if mp matches value found above)
 	return nil
 }
 
@@ -172,4 +192,19 @@ type MetricFamilyTimeSeries struct {
 	Def      MetricDefinition
 	LabelSet map[string]string
 	metrics  []MetricPoint
+}
+
+func (ts *MetricFamilyTimeSeries) Hash() (uint64, error) {
+	mp := MetricPoint{
+		Name:     ts.Def.Name,
+		LabelSet: ts.LabelSet,
+	}
+	return HashMetric(&mp)
+}
+
+func (ts *MetricFamilyTimeSeries) ToMetricPoint() *MetricPoint {
+	return &MetricPoint{
+		Name:     ts.Def.Name,
+		LabelSet: ts.LabelSet,
+	}
 }

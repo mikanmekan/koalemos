@@ -10,7 +10,6 @@ import (
 	"unsafe"
 
 	"github.com/mikanmekan/koalemos/internal/metrics"
-	hashstructure "github.com/mitchellh/hashstructure/v2"
 )
 
 type metricComponent int
@@ -118,17 +117,17 @@ func processMetric(line string, metricFamilies *metrics.MetricFamiliesTimeGroup)
 		LabelSet: map[string]string{},
 	}
 
-	// Take hash of metric name + label set
-	hash, err := hashstructure.Hash(mp, hashstructure.FormatV2, nil)
-	if err != nil {
-		return fmt.Errorf("hashing metric point: %w", err)
-	}
-	mp.Hash = hash
-
-	err = processLabelSets(&mp, labelSetParts)
+	err := processLabelSets(&mp, labelSetParts)
 	if err != nil {
 		return fmt.Errorf("processing label sets: %w", err)
 	}
+
+	// Take hash of metric name + label set
+	hash, err := metrics.HashMetric(&mp)
+	if err != nil {
+		return fmt.Errorf("hashing metric: %w", err)
+	}
+	mp.Hash = hash
 
 	val, err := parseValue(line)
 	if err != nil {

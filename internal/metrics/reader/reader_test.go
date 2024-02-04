@@ -21,7 +21,7 @@ func Test_Read(t *testing.T) {
 		Value:    1027,
 		LabelSet: map[string]string{"code": "200", "method": "post"},
 		Time:     0,
-		Hash:     15123803854892908114,
+		Hash:     11609969638673139140,
 	}
 
 	mp2 := metrics.MetricPoint{
@@ -29,7 +29,7 @@ func Test_Read(t *testing.T) {
 		Value:    1,
 		LabelSet: map[string]string{"code": "422", "method": "post"},
 		Time:     0,
-		Hash:     15123803854892908114,
+		Hash:     3979199312357196258,
 	}
 
 	mp3 := metrics.MetricPoint{
@@ -37,7 +37,7 @@ func Test_Read(t *testing.T) {
 		Value:    70000,
 		LabelSet: map[string]string{"code": "200", "method": "post"},
 		Time:     0,
-		Hash:     2862631026593619755,
+		Hash:     17578704436301222619,
 	}
 
 	tests := []Test{
@@ -55,15 +55,15 @@ http_requests_latency_ms{method="post",code="200"} 70000`,
 				Time: 978595200,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
-						Definition: metrics.MetricDefinition{
+						Def: metrics.MetricDefinition{
 							Name: "http_requests_total",
 							Type: "gauge",
 							Help: "The total number of HTTP requests.",
 						},
-						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1, &mp2}},
+						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1}, mp2.Hash: {&mp2}},
 					},
 					"http_requests_latency_ms": {
-						Definition: metrics.MetricDefinition{
+						Def: metrics.MetricDefinition{
 							Name: "http_requests_latency_ms",
 							Type: "gauge",
 							Help: "The total latency of HTTP requests.",
@@ -85,12 +85,12 @@ http_requests_total{method="post",code="422"} 1`,
 				Time: 978595200,
 				Families: map[string]*metrics.MetricFamily{
 					"http_requests_total": {
-						Definition: metrics.MetricDefinition{
+						Def: metrics.MetricDefinition{
 							Name: "http_requests_total",
 							Type: "gauge",
 							Help: "The total number of HTTP requests.",
 						},
-						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1, &mp2}},
+						HashedMetrics: map[uint64][]*metrics.MetricPoint{mp1.Hash: {&mp1}, mp2.Hash: {&mp2}},
 					},
 				},
 			},
@@ -108,18 +108,20 @@ http_requests_total{method="post",code="200"} 1`,
 	}
 
 	for _, tc := range tests {
-		reader := NewReader()
+		t.Run(tc.desc, func(t *testing.T) {
+			reader := NewReader()
 
-		bs := []byte(tc.literalInput)
-		byteReader := bytes.NewReader(bs)
+			bs := []byte(tc.literalInput)
+			byteReader := bytes.NewReader(bs)
 
-		res, err := reader.Read(byteReader)
+			res, err := reader.Read(byteReader)
 
-		assert.ErrorIs(t, err, tc.expectedErr)
-		// We don't care for the results if we encounter an error while reading.
-		// Read errors will be fully forgotten about.
-		if err == nil {
-			assert.Equal(t, tc.expectedMetrics, res)
-		}
+			assert.ErrorIs(t, err, tc.expectedErr)
+			// We don't care for the results if we encounter an error while
+			// reading.
+			if err == nil {
+				assert.Equal(t, tc.expectedMetrics, res)
+			}
+		})
 	}
 }
